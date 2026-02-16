@@ -1,0 +1,30 @@
+#include <Bluepad32.h>
+it
+GamepadPtr myGamepad;
+
+void onConnectedGamepad(GamepadPtr gp) {
+  myGamepad = gp;
+  Serial.println("Gamepad connected");
+}
+
+void onDisconnectedGamepad(GamepadPtr gp) {
+  myGamepad = nullptr;
+  Serial.println("Gamepad disconnected");
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000); // IMPORTANT
+  Serial.println("Starting Bluepad32...");
+  BP32.setup(&onConnectedGamepad, &onDisconnectedGamepad);
+  Serial.println("Waiting for controller...");
+}
+
+void loop() {
+  BP32.update();
+
+  if (myGamepad && myGamepad->isConnected()) {
+    Serial.printf("Buttons: %08X\n", myGamepad->buttons());
+    delay(300);
+  }
+}
