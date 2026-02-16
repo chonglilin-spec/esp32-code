@@ -1,0 +1,9 @@
+libraries needed
+    -esp32
+    -arduino AVR Boards
+    - ArduinoBLE 
+Board manager
+    - esp32_bluepad32 Ricardo
+
+In arduino, go to tools, boards, then esp32
+    -Choose DOIT ESP32 DEVKIT V1
