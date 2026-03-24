@@ -3,13 +3,26 @@
 GamepadPtr myGamepad;
 
 // ===== LED CONFIG =====
-// Status LED pin (GPIO 2 = built-in LED on many ESP32 boards)
 const int STATUS_LED_PIN = 2;
 
 // Blink timing
 const unsigned long BLINK_INTERVAL = 500; // ms
 unsigned long lastBlinkTime = 0;
 bool ledState = false;
+
+// ===== DEADZONE CONFIG =====
+const int DEADZONE = 50;  // adjust (30–100 typical)
+
+// Deadzone function (smooth scaling)
+int applyDeadzone(int value, int deadzone) {
+  if (abs(value) < deadzone) return 0;
+
+  // Rescale so movement starts smoothly after deadzone
+  if (value > 0)
+    return map(value, deadzone, 512, 0, 512);
+  else
+    return map(value, -deadzone, -512, 0, -512);
+}
 
 void onConnectedGamepad(GamepadPtr gp) {
   myGamepad = gp;
@@ -39,10 +52,8 @@ void loop() {
 
   // ===== LED STATUS LOGIC =====
   if (myGamepad && myGamepad->isConnected()) {
-    // Solid ON when connected
     digitalWrite(STATUS_LED_PIN, HIGH);
   } else {
-    // Blink when not connected
     unsigned long now = millis();
     if (now - lastBlinkTime >= BLINK_INTERVAL) {
       lastBlinkTime = now;
@@ -51,9 +62,17 @@ void loop() {
     }
   }
 
-  // ===== GAMEPAD DATA =====
+  // ===== GAMEPAD DATA WITH DEADZONE =====
   if (myGamepad && myGamepad->isConnected()) {
+
+    int lx = applyDeadzone(myGamepad->axisX(), DEADZONE);
+    int ly = applyDeadzone(myGamepad->axisY(), DEADZONE);
+    int rx = applyDeadzone(myGamepad->axisRX(), DEADZONE);
+    int ry = applyDeadzone(myGamepad->axisRY(), DEADZONE);
+
+    Serial.printf("LX: %d  LY: %d  RX: %d  RY: %d\n", lx, ly, rx, ry);
     Serial.printf("Buttons: %08X\n", myGamepad->buttons());
+
     delay(300);
   }
 }
