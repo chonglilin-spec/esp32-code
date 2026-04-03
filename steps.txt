@@ -5,5 +5,7 @@ libraries needed
 Board manager
     - esp32_bluepad32 Ricardo
 
-In arduino, go to tools, boards, then esp32
-    -Choose DOIT ESP32 DEVKIT V1
+In arduino, go to tools, boards, bluepad, then esp32 WROOM
+
+
+-to upload code onto the esp32, please make sure to press boot while code in uploading 
