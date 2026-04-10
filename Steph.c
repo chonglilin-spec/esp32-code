@@ -1,4 +1,3 @@
-C
 #include <math.h>
 #include <Bluepad32.h>
 
@@ -61,22 +60,34 @@ void loop() {
    Serial.printf("Buttons: %08X\n", myGamepad->buttons());
    delay(300);
 
-   float x = myGamepad->axisX();
-   float y = myGamepad->axisY();
-   Serial.printf("Axis X: %.2f, Axis Y: %.2f\n", x, y);
+   // read gamepad
+float x = myGamepad->axisX();
+float y = myGamepad->axisY();
 
-   double degrees = atan2(y, x) * 180.0 / PI;
-   Serial.printf("Angle: %.2f degrees\n", degrees);
+// deadzone x and y
+if (x >= -10 && x <= 10) {
+    x = 0;
+}
 
-   if (degrees >= 316 && degrees <= 360 || degrees >= 0 && degrees < 44) {
-     Serial.println("Direction: Right");
-   } else if (degrees >= 45 && degrees <= 135) {
-     Serial.println("Direction: Up");
-   } else if (degrees >= 136 && degrees < 224) {
-     Serial.println("Direction: Left");
-   } else if (degrees >= 225 && degrees < 315) {
-     Serial.println("Direction: Down");
-   }
- }
+if (y >= -10 && y <= 10) {
+    y = 0;
+}
+
+// convert to degrees
+double degrees = atan2(y, x) * 180.0 / PI;
+
+//add 180 to constrain to 0-360
+degrees += 180;
+
+if (degrees >= 316 && degrees <= 360 || degrees >= 0 && degrees < 44) {
+    Serial.println("Direction: Up");
+} else if (degrees >= 45 && degrees =< 135) {
+    Serial.println("Direction: Right");
+} else if (degrees >= 136 && degrees < 224) {
+    Serial.println("Direction: Down");
+} else if (degrees >= 225 && degrees < 315) {
+    Serial.println("Direction: Left");
+} else {
+    Serial.println("Direction: None");
 }
 
