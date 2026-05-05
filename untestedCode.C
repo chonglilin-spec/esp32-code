@@ -1,29 +1,26 @@
+#include <math.h>
 #include <Bluepad32.h>
 
 GamepadPtr myGamepad;
 
 // ===== LED CONFIG =====
 const int STATUS_LED_PIN = 2;
-
-// Blink timing
-const unsigned long BLINK_INTERVAL = 500; // ms
+const unsigned long BLINK_INTERVAL = 500;
 unsigned long lastBlinkTime = 0;
 bool ledState = false;
 
-// ===== DEADZONE CONFIG =====
-const int DEADZONE = 50;  // adjust (30–100 typical)
+// ===== MOTOR CONFIG (L298N DUAL MOTOR) =====
+// LEFT MOTOR
+const int ENA = 14;
+const int IN1 = 26;
+const int IN2 = 27;
 
-// Deadzone function (smooth scaling)
-int applyDeadzone(int value, int deadzone) {
-  if (abs(value) < deadzone) return 0;
+// RIGHT MOTOR
+const int ENB = 25;
+const int IN3 = 33;
+const int IN4 = 32;
 
-  // Rescale so movement starts smoothly after deadzone
-  if (value > 0)
-    return map(value, deadzone, 512, 0, 512);
-  else
-    return map(value, -deadzone, -512, 0, -512);
-}
-
+// ===== GAMEPAD CALLBACKS =====
 void onConnectedGamepad(GamepadPtr gp) {
   myGamepad = gp;
   Serial.println("Gamepad connected");
@@ -34,23 +31,78 @@ void onDisconnectedGamepad(GamepadPtr gp) {
   Serial.println("Gamepad disconnected");
 }
 
+// ===== MOTOR CONTROL FUNCTIONS =====
+void leftMotorStop() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  analogWrite(ENA, 0);
+}
+
+void rightMotorStop() {
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENB, 0);
+}
+
+void leftMotorForward(int speed) {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  analogWrite(ENA, speed);
+}
+
+void leftMotorBackward(int speed) {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  analogWrite(ENA, speed);
+}
+
+void rightMotorForward(int speed) {
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENB, speed);
+}
+
+void rightMotorBackward(int speed) {
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  analogWrite(ENB, speed);
+}
+
+void allStop() {
+  leftMotorStop();
+  rightMotorStop();
+}
+
+// ===== SETUP =====
 void setup() {
   Serial.begin(115200);
-  delay(1000); // IMPORTANT
+  delay(1000);
 
-  // Set LED pin
   pinMode(STATUS_LED_PIN, OUTPUT);
   digitalWrite(STATUS_LED_PIN, LOW);
+
+  // Motor pins
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+
+  pinMode(ENB, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  allStop();
 
   Serial.println("Starting Bluepad32...");
   BP32.setup(&onConnectedGamepad, &onDisconnectedGamepad);
   Serial.println("Waiting for controller...");
 }
 
+// ===== LOOP =====
 void loop() {
-  BP32.update();
+  bool newData = BP32.update();
+  if (!newData) return;
 
-  // ===== LED STATUS LOGIC =====
+  // LED status
   if (myGamepad && myGamepad->isConnected()) {
     digitalWrite(STATUS_LED_PIN, HIGH);
   } else {
@@ -62,17 +114,46 @@ void loop() {
     }
   }
 
-  // ===== GAMEPAD DATA WITH DEADZONE =====
+  // ===== GAMEPAD DATA =====
   if (myGamepad && myGamepad->isConnected()) {
 
-    int lx = applyDeadzone(myGamepad->axisX(), DEADZONE);
-    int ly = applyDeadzone(myGamepad->axisY(), DEADZONE);
-    int rx = applyDeadzone(myGamepad->axisRX(), DEADZONE);
-    int ry = applyDeadzone(myGamepad->axisRY(), DEADZONE);
+    float x = myGamepad->axisX();
+    float y = myGamepad->axisY();
 
-    Serial.printf("LX: %d  LY: %d  RX: %d  RY: %d\n", lx, ly, rx, ry);
-    Serial.printf("Buttons: %08X\n", myGamepad->buttons());
+    // Deadzone
+    if (fabs(x) < 10) x = 0;
+    if (fabs(y) < 10) y = 0;
 
-    delay(300);
+    // Convert to degrees
+    double degrees = atan2(y, x) * 180.0 / PI;
+    degrees += 180;
+
+    int speed = 200; // PWM 0–255
+
+    // ===== DIRECTION LOGIC =====
+    if ((degrees >= 316 && degrees <= 360) || (degrees >= 0 && degrees < 44)) {
+      Serial.println("Direction: Up");
+      leftMotorForward(speed);
+      rightMotorForward(speed);
+
+    } else if (degrees >= 45 && degrees <= 135) {
+      Serial.println("Direction: Right");
+      leftMotorForward(speed);
+      rightMotorBackward(speed);
+
+    } else if (degrees >= 136 && degrees < 224) {
+      Serial.println("Direction: Down");
+      leftMotorBackward(speed);
+      rightMotorBackward(speed);
+
+    } else if (degrees >= 225 && degrees < 315) {
+      Serial.println("Direction: Left");
+      leftMotorBackward(speed);
+      rightMotorForward(speed);
+
+    } else {
+      Serial.println("Direction: None");
+      allStop();
+    }
   }
 }
